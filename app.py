@@ -197,8 +197,8 @@ def main():
     
         df = load_and_preprocess_data(source_bytes=uploaded.getvalue())
       
-      df = load_and_preprocess_data()
-      df_encoded, label_encoders = create_encoded_features(df)
+        df = load_and_preprocess_data()
+        df_encoded, label_encoders = create_encoded_features(df)
       
       # Sidebar
       st.sidebar.image("https://img.icons8.com/color/96/000000/insurance.png", width=80)
