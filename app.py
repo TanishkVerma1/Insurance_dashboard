@@ -198,6 +198,9 @@ def main():
             st.stop()
 
         df = load_and_preprocess_data(source_bytes=uploaded.getvalue())
+    df['AGE_GROUP'] = df['AGE_GROUP'].astype(str)
+    df['PI_GENDER'] = df['PI_GENDER'].fillna('Unknown')
+    df['CLAIM_STATUS_TEXT'] = df['CLAIM_STATUS_TEXT'].fillna('Unknown')
 
     # Encode features
     df_encoded, label_encoders = create_encoded_features(df)
@@ -283,7 +286,26 @@ def executive_overview(df):
         st.subheader("🎯 Interactive Drill-Down: Claims by Status → Gender → Age Group")
         
         # Create hierarchical data for sunburst
-        sunburst_df = df.groupby(['CLAIM_STATUS_TEXT', 'PI_GENDER', 'AGE_GROUP']).size().reset_index(name='Count')
+        # --- SAFE Sunburst Data Preparation ---
+        sunburst_cols = ['CLAIM_STATUS_TEXT', 'PI_GENDER', 'AGE_GROUP']
+        
+        sunburst_df = (
+            df[sunburst_cols]
+            .dropna()  # 🔴 critical
+            .astype(str)
+            .groupby(sunburst_cols)
+            .size()
+            .reset_index(name='Count')
+        )
+        
+        # Remove zero or negative counts (extra safety)
+        sunburst_df = sunburst_df[sunburst_df['Count'] > 0]
+        
+        # Fallback guard
+        if sunburst_df.empty:
+            st.warning("Not enough valid data to display Sunburst chart.")
+            return
+
         
         fig_sunburst = px.sunburst(
             sunburst_df,
@@ -291,8 +313,14 @@ def executive_overview(df):
             values='Count',
             color='Count',
             color_continuous_scale='RdYlGn',
-            title='Click to Drill Down: Status → Gender → Age'
+            maxdepth=3
         )
+        
+        fig_sunburst.update_layout(
+            title="Click to Drill Down: Status → Gender → Age",
+            height=500
+        )
+
         fig_sunburst.update_layout(height=500)
         st.plotly_chart(fig_sunburst, use_container_width=True)
     
