@@ -92,7 +92,6 @@ st.markdown("""
 
 
 @st.cache_data
-@st.cache_data
 def load_and_preprocess_data(source_bytes: bytes = None, source_path: str = None):
     """Load and preprocess the insurance dataset (works locally + Streamlit Cloud)."""
     if source_bytes is not None:
@@ -167,11 +166,14 @@ def create_encoded_features(df):
 
 def main():
     # Header
-    st.markdown('<h1 class="main-header">🏥 Insurance Claims Analytics Dashboard</h1>', 
-                unsafe_allow_html=True)
-    
-    # Load data
+    st.markdown(
+        '<h1 class="main-header">🏥 Insurance Claims Analytics Dashboard</h1>',
+        unsafe_allow_html=True
+    )
+
+    # ---------------------------
     # Load data (robust path + optional uploader)
+    # ---------------------------
     repo_dir = Path(__file__).parent
     candidates = [
         repo_dir / "Insurance.csv",
@@ -179,66 +181,74 @@ def main():
         Path.cwd() / "Insurance.csv",
         Path.cwd() / "data" / "Insurance.csv",
     ]
-    
+
     data_path = next((p for p in candidates if p.exists()), None)
-    
+
     if data_path is not None:
         df = load_and_preprocess_data(source_path=str(data_path))
     else:
         st.sidebar.markdown("### 📁 Dataset Upload")
         uploaded = st.sidebar.file_uploader("Upload Insurance.csv", type=["csv"])
-    
+
         if uploaded is None:
             st.error(
                 "Insurance.csv not found.\n\n"
                 "✅ Fix: Add `Insurance.csv` to the repo (same folder as app.py) **or** upload it from the sidebar."
             )
             st.stop()
-    
-        df = load_and_preprocess_data(source_bytes=uploaded.getvalue())
-      
-    df = load_and_preprocess_data()
-    df_encoded, label_encoders = create_encoded_features(df)
-      
-      # Sidebar
-      st.sidebar.image("https://img.icons8.com/color/96/000000/insurance.png", width=80)
-      st.sidebar.title("Navigation")
-      
-      page = st.sidebar.radio(
-          "Select Analysis Module",
-          ["📊 Executive Overview", 
-           "🎯 Classification Analysis",
-           "🔮 Clustering Analysis",
-           "📈 Regression Analysis",
-           "🔗 Association Rules",
-           "🗺️ Geographic Analysis",
-           "📉 Deep Drill-Down Analysis"]
-      )
-      
-      st.sidebar.markdown("---")
-      st.sidebar.markdown("### 📋 Dataset Info")
-      st.sidebar.info(f"""
-      **Total Records:** {len(df):,}
-      **Features:** {len(df.columns)}
-      **Approved Claims:** {df['CLAIM_STATUS'].sum():,}
-      **Repudiated Claims:** {(df['CLAIM_STATUS']==0).sum():,}
-      """)
-      
-      if page == "📊 Executive Overview":
-          executive_overview(df)
-      elif page == "🎯 Classification Analysis":
-          classification_analysis(df, df_encoded)
-      elif page == "🔮 Clustering Analysis":
-          clustering_analysis(df, df_encoded)
-      elif page == "📈 Regression Analysis":
-          regression_analysis(df, df_encoded)
-      elif page == "🔗 Association Rules":
-          association_rule_mining(df)
-      elif page == "🗺️ Geographic Analysis":
-          geographic_analysis(df)
-      elif page == "📉 Deep Drill-Down Analysis":
-          deep_drilldown_analysis(df, df_encoded)
 
+        df = load_and_preprocess_data(source_bytes=uploaded.getvalue())
+
+    # Encode features
+    df_encoded, label_encoders = create_encoded_features(df)
+
+    # ---------------------------
+    # Sidebar
+    # ---------------------------
+    st.sidebar.image("https://img.icons8.com/color/96/000000/insurance.png", width=80)
+    st.sidebar.title("Navigation")
+
+    page = st.sidebar.radio(
+        "Select Analysis Module",
+        [
+            "📊 Executive Overview",
+            "🎯 Classification Analysis",
+            "🔮 Clustering Analysis",
+            "📈 Regression Analysis",
+            "🔗 Association Rules",
+            "🗺️ Geographic Analysis",
+            "📉 Deep Drill-Down Analysis",
+        ],
+    )
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 📋 Dataset Info")
+    st.sidebar.info(
+        f"""
+**Total Records:** {len(df):,}
+**Features:** {len(df.columns)}
+**Approved Claims:** {int(df['CLAIM_STATUS'].sum()):,}
+**Repudiated Claims:** {int((df['CLAIM_STATUS']==0).sum()):,}
+"""
+    )
+
+    # ---------------------------
+    # Route pages
+    # ---------------------------
+    if page == "📊 Executive Overview":
+        executive_overview(df)
+    elif page == "🎯 Classification Analysis":
+        classification_analysis(df, df_encoded)
+    elif page == "🔮 Clustering Analysis":
+        clustering_analysis(df, df_encoded)
+    elif page == "📈 Regression Analysis":
+        regression_analysis(df, df_encoded)
+    elif page == "🔗 Association Rules":
+        association_rule_mining(df)
+    elif page == "🗺️ Geographic Analysis":
+        geographic_analysis(df)
+    elif page == "📉 Deep Drill-Down Analysis":
+        deep_drilldown_analysis(df, df_encoded)
 
 def executive_overview(df):
     """Executive Overview Dashboard"""
