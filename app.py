@@ -197,7 +197,7 @@ def main():
     
         df = load_and_preprocess_data(source_bytes=uploaded.getvalue())
       
-    df = load_and_preprocess_data()
+      df = load_and_preprocess_data()
       df_encoded, label_encoders = create_encoded_features(df)
       
       # Sidebar
