@@ -20,6 +20,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import warnings
 warnings.filterwarnings('ignore')
+from pathlib import Path
+import io
+
 
 # ML Libraries
 from sklearn.model_selection import train_test_split, cross_val_score, learning_curve
@@ -89,34 +92,45 @@ st.markdown("""
 
 
 @st.cache_data
-def load_and_preprocess_data():
-    """Load and preprocess the insurance dataset"""
-    df = pd.read_csv('/mnt/user-data/uploads/Insurance.csv')
-    
+@st.cache_data
+def load_and_preprocess_data(source_bytes: bytes = None, source_path: str = None):
+    """Load and preprocess the insurance dataset (works locally + Streamlit Cloud)."""
+    if source_bytes is not None:
+        df = pd.read_csv(io.BytesIO(source_bytes))
+    elif source_path is not None:
+        df = pd.read_csv(source_path)
+    else:
+        raise FileNotFoundError("No dataset source provided (bytes or path).")
+
     # Clean numeric columns (remove commas)
     df['SUM_ASSURED'] = df['SUM_ASSURED'].astype(str).str.replace(',', '').astype(float)
     df['PI_ANNUAL_INCOME'] = df['PI_ANNUAL_INCOME'].astype(str).str.replace(',', '').astype(float)
-    
+
     # Create binary target variable
     df['CLAIM_STATUS'] = df['POLICY_STATUS'].apply(lambda x: 1 if 'Approved' in str(x) else 0)
     df['CLAIM_STATUS_TEXT'] = df['CLAIM_STATUS'].map({1: 'Approved', 0: 'Repudiated'})
-    
+
     # Create age groups
-    df['AGE_GROUP'] = pd.cut(df['PI_AGE'], bins=[0, 30, 45, 60, 75, 100], 
-                            labels=['Young (0-30)', 'Middle (31-45)', 'Senior (46-60)', 
-                                   'Elderly (61-75)', 'Very Elderly (76+)'])
-    
+    df['AGE_GROUP'] = pd.cut(
+        df['PI_AGE'],
+        bins=[0, 30, 45, 60, 75, 100],
+        labels=['Young (0-30)', 'Middle (31-45)', 'Senior (46-60)', 'Elderly (61-75)', 'Very Elderly (76+)']
+    )
+
     # Create income groups
-    df['INCOME_GROUP'] = pd.cut(df['PI_ANNUAL_INCOME'], 
-                                bins=[-1, 0, 100000, 300000, 500000, float('inf')],
-                                labels=['No Income', 'Low (<1L)', 'Medium (1-3L)', 
-                                       'High (3-5L)', 'Very High (>5L)'])
-    
+    df['INCOME_GROUP'] = pd.cut(
+        df['PI_ANNUAL_INCOME'],
+        bins=[-1, 0, 100000, 300000, 500000, float('inf')],
+        labels=['No Income', 'Low (<1L)', 'Medium (1-3L)', 'High (3-5L)', 'Very High (>5L)']
+    )
+
     # Create sum assured groups
-    df['SUM_ASSURED_GROUP'] = pd.cut(df['SUM_ASSURED'],
-                                     bins=[0, 100000, 300000, 500000, 1000000, float('inf')],
-                                     labels=['<1L', '1-3L', '3-5L', '5-10L', '>10L'])
-    
+    df['SUM_ASSURED_GROUP'] = pd.cut(
+        df['SUM_ASSURED'],
+        bins=[0, 100000, 300000, 500000, 1000000, float('inf')],
+        labels=['<1L', '1-3L', '3-5L', '5-10L', '>10L']
+    )
+
     # Region mapping for geographic visualization
     state_region_map = {
         'Himachal Pradesh': 'North', 'Punjab': 'North', 'Haryana': 'North',
@@ -130,7 +144,7 @@ def load_and_preprocess_data():
         'Madhya Pradesh': 'Central'
     }
     df['REGION'] = df['PI_STATE'].map(state_region_map).fillna('Other')
-    
+
     return df
 
 
@@ -157,7 +171,33 @@ def main():
                 unsafe_allow_html=True)
     
     # Load data
-    df = load_and_preprocess_data()
+  # Load data (robust path + optional uploader)
+  repo_dir = Path(__file__).parent
+  candidates = [
+      repo_dir / "Insurance.csv",
+      repo_dir / "data" / "Insurance.csv",
+      Path.cwd() / "Insurance.csv",
+      Path.cwd() / "data" / "Insurance.csv",
+  ]
+  
+  data_path = next((p for p in candidates if p.exists()), None)
+  
+  if data_path is not None:
+      df = load_and_preprocess_data(source_path=str(data_path))
+  else:
+      st.sidebar.markdown("### 📁 Dataset Upload")
+      uploaded = st.sidebar.file_uploader("Upload Insurance.csv", type=["csv"])
+  
+      if uploaded is None:
+          st.error(
+              "Insurance.csv not found.\n\n"
+              "✅ Fix: Add `Insurance.csv` to the repo (same folder as app.py) **or** upload it from the sidebar."
+          )
+          st.stop()
+  
+      df = load_and_preprocess_data(source_bytes=uploaded.getvalue())
+    
+  df = load_and_preprocess_data()
     df_encoded, label_encoders = create_encoded_features(df)
     
     # Sidebar
